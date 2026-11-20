@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">StudyFolio</string>
+    <string name="tagline">Your personal AI study studio</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign out</string>
+    <string name="new_notebook">New Notebook</string>
+    <string name="tab_sources">Sources</string>
+    <string name="tab_chat">Chat</string>
+    <string name="tab_studio">Studio</string>
+    <string name="add_file">Upload File</string>
+    <string name="add_photo">Scan Photo</string>
+    <string name="add_note">Write Note</string>
+    <string name="ask_placeholder">Ask anything about your sources…</string>
+</resources>

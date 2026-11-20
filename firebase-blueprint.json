@@ -1,0 +1,197 @@
+{
+  "entities": {
+    "Notebook": {
+      "title": "Notebook",
+      "description": "A student's study notebook grouping uploaded sources, AI study artifacts, and grounded Q&A messages.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Notebook title."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Course or subject tag."
+        },
+        "colorToken": {
+          "type": "string",
+          "enum": ["teal", "terracotta", "amber", "indigo", "sage"],
+          "description": "Cover accent palette token."
+        },
+        "sourceCount": {
+          "type": "integer",
+          "description": "Count of sources in this notebook."
+        },
+        "summaryOverview": {
+          "type": "string",
+          "description": "Optional quick overview generated from sources."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "title", "subject", "colorToken", "sourceCount", "createdAt", "updatedAt"]
+    },
+    "StudySource": {
+      "title": "StudySource",
+      "description": "An uploaded or authored learning material (PDF digest, DOCX, PPTX, image notes, or pasted note).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "notebookId": {
+          "type": "string",
+          "description": "Parent notebook document ID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Source document title."
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": ["PDF", "DOC", "SLIDES", "NOTE", "IMAGE"],
+          "description": "Source category."
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "Original MIME type."
+        },
+        "content": {
+          "type": "string",
+          "description": "Extracted study text or note body."
+        },
+        "excerpt": {
+          "type": "string",
+          "description": "Short preview snippet."
+        },
+        "wordCount": {
+          "type": "integer",
+          "description": "Word count of extracted content."
+        },
+        "included": {
+          "type": "boolean",
+          "description": "Whether this source is toggled active for AI grounding."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "notebookId", "title", "sourceType", "mimeType", "content", "excerpt", "wordCount", "included", "createdAt", "updatedAt"]
+    },
+    "StudyArtifact": {
+      "title": "StudyArtifact",
+      "description": "Generated study guide, summary, flashcard deck, practice quiz, or audio overview script.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "notebookId": {
+          "type": "string",
+          "description": "Parent notebook document ID."
+        },
+        "artifactType": {
+          "type": "string",
+          "enum": ["SUMMARY", "STUDY_GUIDE", "FLASHCARDS", "QUIZ", "AUDIO_OVERVIEW"],
+          "description": "Type of study artifact."
+        },
+        "title": {
+          "type": "string",
+          "description": "Artifact display title."
+        },
+        "payloadJson": {
+          "type": "string",
+          "description": "Structured content or JSON payload for rendering."
+        },
+        "sourceTitles": {
+          "type": "array",
+          "description": "Titles of sources used to generate this artifact."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "notebookId", "artifactType", "title", "payloadJson", "sourceTitles", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A user question or grounded AI assistant response inside a notebook.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "notebookId": {
+          "type": "string",
+          "description": "Parent notebook document ID."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "assistant"],
+          "description": "Message author role."
+        },
+        "text": {
+          "type": "string",
+          "description": "Message text content."
+        },
+        "citations": {
+          "type": "array",
+          "description": "Cited source titles."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "notebookId", "role", "text", "citations", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/notebooks/{notebookId}": {
+      "schema": { "$ref": "#/entities/Notebook" },
+      "description": "User-owned study notebooks."
+    },
+    "/users/{userId}/notebooks/{notebookId}/sources/{sourceId}": {
+      "schema": { "$ref": "#/entities/StudySource" },
+      "description": "Sources attached to a notebook."
+    },
+    "/users/{userId}/notebooks/{notebookId}/artifacts/{artifactId}": {
+      "schema": { "$ref": "#/entities/StudyArtifact" },
+      "description": "Generated study artifacts for a notebook."
+    },
+    "/users/{userId}/notebooks/{notebookId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Grounded Q&A chat history for a notebook."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "StudyFolio",
+  "description": "AI-powered study and research assistant for organizing learning materials, generating study guides, flashcards, practice quizzes, and audio-style lesson discussions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

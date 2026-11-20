@@ -1,0 +1,204 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidNotebook(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.title is string &&
+             data.title.size() >= 1 &&
+             data.title.size() <= 120 &&
+             data.subject is string &&
+             data.subject.size() <= 60 &&
+             data.colorToken in ['teal', 'terracotta', 'amber', 'indigo', 'sage'] &&
+             data.sourceCount is int &&
+             data.sourceCount >= 0 &&
+             data.sourceCount <= 200 &&
+             (!('summaryOverview' in data) || (data.summaryOverview is string && data.summaryOverview.size() <= 15000)) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidSource(data, userId, notebookId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.notebookId is string &&
+             data.notebookId == notebookId &&
+             data.title is string &&
+             data.title.size() >= 1 &&
+             data.title.size() <= 160 &&
+             data.sourceType in ['PDF', 'DOC', 'SLIDES', 'NOTE', 'IMAGE'] &&
+             data.mimeType is string &&
+             data.mimeType.size() <= 120 &&
+             data.content is string &&
+             data.content.size() >= 1 &&
+             data.content.size() <= 80000 &&
+             data.excerpt is string &&
+             data.excerpt.size() <= 400 &&
+             data.wordCount is int &&
+             data.wordCount >= 0 &&
+             data.wordCount <= 50000 &&
+             data.included is bool &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidArtifact(data, userId, notebookId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.notebookId is string &&
+             data.notebookId == notebookId &&
+             data.artifactType in ['SUMMARY', 'STUDY_GUIDE', 'FLASHCARDS', 'QUIZ', 'AUDIO_OVERVIEW'] &&
+             data.title is string &&
+             data.title.size() >= 1 &&
+             data.title.size() <= 160 &&
+             data.payloadJson is string &&
+             data.payloadJson.size() >= 1 &&
+             data.payloadJson.size() <= 100000 &&
+             data.sourceTitles is list &&
+             data.sourceTitles.size() <= 30 &&
+             (data.sourceTitles.size() == 0 || data.sourceTitles[0] is string) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidChatMessage(data, userId, notebookId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.notebookId is string &&
+             data.notebookId == notebookId &&
+             data.role in ['user', 'assistant'] &&
+             data.text is string &&
+             data.text.size() >= 1 &&
+             data.text.size() <= 40000 &&
+             data.citations is list &&
+             data.citations.size() <= 20 &&
+             (data.citations.size() == 0 || data.citations[0] is string) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time;
+    }
+
+    match /users/{userId}/notebooks/{notebookId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(notebookId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(notebookId) &&
+                       incoming().keys().hasAll(['userId', 'title', 'subject', 'colorToken', 'sourceCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'subject', 'colorToken', 'sourceCount', 'summaryOverview', 'createdAt', 'updatedAt']) &&
+                       isValidNotebook(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(notebookId) &&
+                       isValidNotebook(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subject', 'colorToken', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly(['sourceCount', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly(['summaryOverview', 'updatedAt'])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(notebookId);
+
+      match /sources/{sourceId} {
+        allow list: if isOwner(userId) && isValidId(notebookId);
+        allow get: if isOwner(userId) && isValidId(notebookId) && isValidId(sourceId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(sourceId) &&
+                         incoming().keys().hasAll(['userId', 'notebookId', 'title', 'sourceType', 'mimeType', 'content', 'excerpt', 'wordCount', 'included', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'notebookId', 'title', 'sourceType', 'mimeType', 'content', 'excerpt', 'wordCount', 'included', 'createdAt', 'updatedAt']) &&
+                         isValidSource(incoming(), userId, notebookId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/notebooks/$(notebookId));
+
+        allow update: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(sourceId) &&
+                         isValidSource(incoming(), userId, notebookId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().notebookId == existing().notebookId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['included', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'excerpt', 'wordCount', 'updatedAt'])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(notebookId) && isValidId(sourceId);
+      }
+
+      match /artifacts/{artifactId} {
+        allow list: if isOwner(userId) && isValidId(notebookId);
+        allow get: if isOwner(userId) && isValidId(notebookId) && isValidId(artifactId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(artifactId) &&
+                         incoming().keys().hasAll(['userId', 'notebookId', 'artifactType', 'title', 'payloadJson', 'sourceTitles', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'notebookId', 'artifactType', 'title', 'payloadJson', 'sourceTitles', 'createdAt', 'updatedAt']) &&
+                         isValidArtifact(incoming(), userId, notebookId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/notebooks/$(notebookId));
+
+        allow update: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(artifactId) &&
+                         isValidArtifact(incoming(), userId, notebookId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().notebookId == existing().notebookId &&
+                         incoming().artifactType == existing().artifactType &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'payloadJson', 'sourceTitles', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(notebookId) && isValidId(artifactId);
+      }
+
+      match /messages/{messageId} {
+        allow list: if isOwner(userId) && isValidId(notebookId);
+        allow get: if isOwner(userId) && isValidId(notebookId) && isValidId(messageId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(messageId) &&
+                         incoming().keys().hasAll(['userId', 'notebookId', 'role', 'text', 'citations', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'notebookId', 'role', 'text', 'citations', 'createdAt']) &&
+                         isValidChatMessage(incoming(), userId, notebookId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/notebooks/$(notebookId));
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(notebookId) && isValidId(messageId);
+      }
+    }
+  }
+}
